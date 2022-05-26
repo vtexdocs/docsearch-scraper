@@ -3,7 +3,9 @@
   "start_urls": [
     "http://localhost/"
   ],
-  "stop_urls": ["http://localhost/docs/api-reference"],
+  "stop_urls": [
+    "http://localhost/docs/api-reference"
+  ],
   "selectors": {
     "lvl0": "h1",
     "lvl1": "h2",
@@ -31,5 +33,5 @@
   "conversation_id": [
     "706181789"
   ],
-  "nb_hits": 4
+  "nb_hits": 32
 }
