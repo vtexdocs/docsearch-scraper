@@ -1,7 +1,7 @@
 {
   "index_name": "docsearch-scraper-openapi-test",
   "start_urls": [
-    "https://elated-hoover-5c29bf.netlify.app//docs/api-reference"
+    "https://elated-hoover-5c29bf.netlify.app/docs/api-reference"
   ],
   "stop_urls": [],
   "selectors": {
