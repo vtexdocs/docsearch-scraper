@@ -24,6 +24,15 @@ class AlgoliaHelper:
 
         if len(query_rules) > 0:
             self.algolia_index_tmp.save_rules(query_rules, True, True)
+        try:
+            print("Cleaning index")
+
+            self.algolia_index.clear_objects()
+
+            print("Ready to Scraping")
+
+        except Exception:
+            print("Couldn't clear index records")
 
     def add_records(self, records, url, from_sitemap):
         """Add new records to the temporary index"""
