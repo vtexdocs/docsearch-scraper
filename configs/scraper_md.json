@@ -1,11 +1,11 @@
 {
   "index_name": "docsearch-scraper-md-files",
   "start_urls": [
-    "http://elated-hoover-5c29bf.netlify.app/docs/api-guides"
+    "https://elated-hoover-5c29bf.netlify.app/docs/api-guides"
   ],
   "stop_urls": [],
   "sitemap_urls": [
-    "http://elated-hoover-5c29bf.netlify.app/sitemap.xml"
+    "https://elated-hoover-5c29bf.netlify.app/sitemap-0.xml"
   ],
   "selectors": {
     "text": "article p, article li",
@@ -31,8 +31,9 @@
   },
   "use_anchors": true,
   "min_indexed_level": 0,
+  "clear_index": true,
   "conversation_id": [
     "706181789"
   ],
-  "nb_hits": 9936
+  "nb_hits": 21301
 }

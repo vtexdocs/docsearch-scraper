@@ -9,7 +9,7 @@ from builtins import range
 class AlgoliaHelper:
     """AlgoliaHelper"""
 
-    def __init__(self, app_id, api_key, index_name, index_name_tmp, settings, query_rules):
+    def __init__(self, app_id, api_key, index_name, index_name_tmp, settings, query_rules, clear_index):
         self.algolia_client = SearchClient.create(app_id, api_key)
         self.index_name = index_name
         self.index_name_tmp = index_name_tmp
@@ -21,25 +21,27 @@ class AlgoliaHelper:
             self.index_name_tmp
         )
         self.algolia_index_tmp.set_settings(settings)
+        self.clear_index = clear_index
 
         if len(query_rules) > 0:
             self.algolia_index_tmp.save_rules(query_rules, True, True)
-        try:
-            print("Cleaning index")
+        if clear_index :
+            try:
+                print("Cleaning index")
 
-            self.algolia_index.clear_objects()
+                self.algolia_index.clear_objects()
 
-            print("Ready to Scraping")
+                print("Ready to Scraping")
 
-        except Exception:
-            print("Couldn't clear index records")
+            except Exception:
+                print("Couldn't clear index records")
 
     def add_records(self, records, url, from_sitemap):
         """Add new records to the temporary index"""
         record_count = len(records)
 
         for i in range(0, record_count, 50):
-            self.algolia_index_tmp.save_objects(records[i:i + 50])
+            self.algolia_index.save_objects(records[i:i + 50])
 
         color = "96" if from_sitemap else "94"
 
@@ -52,7 +54,7 @@ class AlgoliaHelper:
         for _, value in list(synonyms.items()):
             synonyms_list.append(value)
 
-        self.algolia_index_tmp.save_synonyms(synonyms_list)
+        self.algolia_index.save_synonyms(synonyms_list)
         print(
             '\033[94m> DocSearch: \033[0m Synonyms (\033[93m{} synonyms\033[0m)'.format(
                 len(synonyms_list)))

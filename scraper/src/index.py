@@ -42,7 +42,8 @@ def run_config(config):
         config.index_name,
         config.index_name_tmp,
         AlgoliaSettings.get(config, strategy.levels),
-        config.query_rules
+        config.query_rules,
+        config.clear_index,
     )
 
     root_module = 'src.' if __name__ == '__main__' else 'scraper.src.'
@@ -104,7 +105,7 @@ def run_config(config):
     print("")
 
     if DocumentationSpider.NB_INDEXED > 0:
-        algolia_helper.commit_tmp_index()
+        # algolia_helper.commit_tmp_index()
         print('Nb hits: {}'.format(DocumentationSpider.NB_INDEXED))
         config.update_nb_hits_value(DocumentationSpider.NB_INDEXED)
     else:
