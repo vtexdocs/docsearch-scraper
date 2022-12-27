@@ -1,7 +1,7 @@
 {
   "index_name": "devportal-docs",
   "start_urls": [
-    "https://elated-hoover-5c29bf.netlify.app/docs/api-reference/catalog-api#get-/api/catalog_system/pvt/products/GetProductAndSkuIds"
+    "https://developersbeta.vtex.com.br/docs/api-reference"
   ],
   "stop_urls": [],
   "selectors": {
