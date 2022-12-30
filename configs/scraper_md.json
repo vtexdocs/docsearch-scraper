@@ -1,7 +1,7 @@
 {
   "index_name": "devportal-docs",
   "start_urls": [
-    "https://developersbeta.vtex.com.br/docs/api-guides"
+    "https://developersbeta.vtex.com.br/docs/guides"
   ],
   "stop_urls": [],
   "sitemap_urls": [
