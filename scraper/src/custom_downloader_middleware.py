@@ -3,6 +3,7 @@ CustomDownloaderMiddleware
 """
 
 import time
+import requests
 
 from scrapy.http import HtmlResponse
 from urllib.parse import urlparse, unquote_plus
@@ -22,13 +23,17 @@ class CustomDownloaderMiddleware:
             o = urlparse(request.url)
             url_without_params = o.scheme + "://" + o.netloc + o.path
             request = request.replace(url=url_without_params)
-
         print("Getting " + request.url + " from selenium")
 
         self.driver.get(unquote_plus(
             request.url))  # Decode url otherwise firefox is not happy. Ex /#%21/ => /#!/%21
         time.sleep(spider.js_wait)
-        body = self.driver.execute_script("return document.documentElement.getInnerHTML();")
+        body = None
+        if request.flags is not None and "sitemap" in request.flags:
+            body = requests.get(request.url).content
+        else:
+            body = self.driver.execute_script("return document.documentElement.getInnerHTML();")
+
         url = self.driver.current_url
 
         return HtmlResponse(
@@ -41,7 +46,6 @@ class CustomDownloaderMiddleware:
         # Since scrappy use start_urls and stop_urls before creating the request
         # If the url get redirected then this url gets crawled even if it's not allowed to
         # So we check if the final url is allowed
-
         if spider.remove_get_params:
             o = urlparse(response.url)
             url_without_params = o.scheme + "://" + o.netloc + o.path

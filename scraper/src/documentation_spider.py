@@ -84,7 +84,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         # Get rid of scheme consideration
         # Start_urls must stays authentic URL in order to be reached, we build agnostic scheme regex based on those URL
         start_urls_any_scheme = [DocumentationSpider.to_any_scheme(start_url)
-                                 for start_url in self.start_urls]
+                                 for start_url in self.start_urls] if not config.sitemap_urls else ['']
         link_extractor = LxmlLinkExtractor(
             allow=start_urls_any_scheme,
             deny=self.stop_urls,
@@ -117,7 +117,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
             self.__init_sitemap_(config.sitemap_urls, sitemap_rules,
                                  config.sitemap_alternate_links)
             self.force_sitemap_urls_crawling = config.force_sitemap_urls_crawling
-
         # END _init_ part from SitemapSpider
         super(DocumentationSpider, self)._compile_rules()
 
@@ -129,6 +128,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                               "alternative_links": DocumentationSpider.to_other_scheme(
                                   url)
                           },
+                          flags=['sitemap'],
                           errback=self.errback_alternative_link)
         # Redirection is neither an error (4XX status) nor a success (2XX) if dont_redirect=False, thus we force it
 
