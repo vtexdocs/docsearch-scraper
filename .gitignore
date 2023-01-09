@@ -12,6 +12,8 @@ chromedriver
 
 *yarn.lock
 
+.venv
+
 # IDE Files
 .idea/
 *.iml
