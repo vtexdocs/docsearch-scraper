@@ -8,12 +8,12 @@
     "https://developers.vtex.com/sitemap-0.xml"
   ],
   "selectors": {
-    "text": "article p, article li",
     "lvl0": "article .title, article h1",
     "lvl1": "article h2",
     "lvl2": "article h3",
     "lvl3": "article h4",
-    "lvl4": "article h5"
+    "lvl4": "article h5",
+    "text": "article p, article li"
   },
   "custom_settings": {
     "separatorsToIndex": "_",
@@ -35,5 +35,5 @@
   "conversation_id": [
     "706181789"
   ],
-  "nb_hits": 21301
+  "nb_hits": 21855
 }

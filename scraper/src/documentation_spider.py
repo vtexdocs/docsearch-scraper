@@ -133,16 +133,17 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         # Redirection is neither an error (4XX status) nor a success (2XX) if dont_redirect=False, thus we force it
 
         # We crawl the start URL in order to ensure we didn't miss anything (Even if we used the sitemap)
-        for url in self.start_urls:
-            yield Request(url,
-                          callback=self.parse_from_start_url if self.scrape_start_urls else self.parse,
-                          # If we wan't to crawl (default behavior) without scraping, we still need to let the
-                          # crawling spider acknowledge the content by parsing it with the built-in method
-                          meta={
-                              "alternative_links": DocumentationSpider.to_other_scheme(
-                                  url)
-                          },
-                          errback=self.errback_alternative_link)
+        if not self.sitemap_urls:
+            for url in self.start_urls:
+                yield Request(url,
+                            callback=self.parse_from_start_url if self.scrape_start_urls else self.parse,
+                            # If we wan't to crawl (default behavior) without scraping, we still need to let the
+                            # crawling spider acknowledge the content by parsing it with the built-in method
+                            meta={
+                                "alternative_links": DocumentationSpider.to_other_scheme(
+                                    url)
+                            },
+                            errback=self.errback_alternative_link)
 
     def add_records(self, response, from_sitemap):
         records = self.strategy.get_records_from_response(response)
