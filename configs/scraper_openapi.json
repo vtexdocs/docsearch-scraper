@@ -36,7 +36,10 @@
       "url",
       "url_without_anchor",
       "type",
-      "doctype"
+      "doctype",
+      "doctitle",
+      "doccategory",
+      "method"
     ]
   },
   "js_render": true,

@@ -26,7 +26,8 @@
       "anchor",
       "url",
       "type",
-      "doctype"
+      "doctype",
+      "doctitle"
     ]
   },
   "use_anchors": true,
