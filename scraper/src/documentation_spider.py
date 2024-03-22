@@ -128,16 +128,19 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         # Convert file paths to get slugs for crawl or remove records
         if self.is_file_update:
             if isinstance(self.added_files, str):
+                print('ADDED: ', self.added_files)
                 for item in self.added_files.split(' '):
                     parsedContent = parse_file(item)
                     if(parsedContent):
                         self.docs_to_add.append(parsedContent)
             if isinstance(self.removed_files, str):
+                print('REMOVED: ', self.removed_files)
                 for item in self.removed_files.split(' '):
                     parsedContent = parse_file(item)
                     if(parsedContent):
                         self.docs_to_remove.append(parsedContent)
             if isinstance(self.updated_files, str):
+                print('UPDATED: ', self.updated_files)
                 for item in self.updated_files.split(' '):
                     parsedContent = parse_file(item)
                     if(parsedContent):
