@@ -98,6 +98,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         self.added_files = config.added_files
         self.removed_files = config.removed_files
         self.updated_files = config.updated_files
+        self.renamed_files = config.renamed_files
         self.docs_to_add = []
         self.docs_to_remove = []
         self.app_id = config.app_id
@@ -130,22 +131,31 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
             if isinstance(self.added_files, str):
                 print('ADDED: ', self.added_files)
                 for item in self.added_files.split(' '):
-                    parsedContent = parse_file(item)
-                    if(parsedContent):
-                        self.docs_to_add.append(parsedContent)
+                    parsed_content = parse_file(item)
+                    if(parsed_content):
+                        self.docs_to_add.append(parsed_content)
             if isinstance(self.removed_files, str):
                 print('REMOVED: ', self.removed_files)
                 for item in self.removed_files.split(' '):
-                    parsedContent = parse_file(item)
-                    if(parsedContent):
-                        self.docs_to_remove.append(parsedContent)
+                    parsed_content = parse_file(item)
+                    if(parsed_content):
+                        self.docs_to_remove.append(parsed_content)
             if isinstance(self.updated_files, str):
                 print('UPDATED: ', self.updated_files)
                 for item in self.updated_files.split(' '):
-                    parsedContent = parse_file(item)
-                    if(parsedContent):
-                        self.docs_to_add.append(parsedContent)
-                        self.docs_to_remove.append(parsedContent)
+                    parsed_content = parse_file(item)
+                    if(parsed_content):
+                        self.docs_to_add.append(parsed_content)
+                        self.docs_to_remove.append(parsed_content)
+            if isinstance(self.renamed_files, str):
+                print('RENAMED', self.renamed_files)
+                for item in self.renamed_files.split(' '):
+                    [old_file, new_file] = item.split(',')
+                    old_parsed_content = parse_file(old_file)
+                    new_parsed_content = parse_file(new_file)
+                    if(old_parsed_content and new_parsed_content):
+                        self.docs_to_add.append(new_parsed_content)
+                        self.docs_to_remove.append(old_parsed_content)
 
 
         # START _init_ part from SitemapSpider
