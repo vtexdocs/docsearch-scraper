@@ -52,6 +52,12 @@ class ConfigLoader:
     only_content_level = False
     query_rules = []
 
+    #update algolia index by docs list
+    is_file_update = False
+    added_files = None
+    removed_files = None
+    updated_files = None
+
     # data storage, starting here attribute are not config params
     config_file = None
     config_content = None
@@ -112,6 +118,9 @@ class ConfigLoader:
         self.app_id = os.environ.get('APPLICATION_ID', None)
         self.api_key = os.environ.get('API_KEY', None)
         self.update_nb_hits = os.environ.get('UPDATE_NB_HITS', None)
+        self.added_files = os.environ.get('ADDED_FILES', None)
+        self.removed_files = os.environ.get('REMOVED_FILES', None)
+        self.updated_files = os.environ.get('UPDATED_FILES', None)
         if self.update_nb_hits is not None:
             self.update_nb_hits = bool(strtobool(self.update_nb_hits))
         if self.index_name_tmp is None:

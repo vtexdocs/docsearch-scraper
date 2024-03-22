@@ -53,6 +53,11 @@ In the case of Client-Side Rendering, we need one more step in this configuratio
   - `API_KEY`: API key for your targeted application. Make sure to use an API key with write access to your index. It needs the ACL addObject, editSettings and deleteIndex.
   - `CHROMEDRIVER_PATH`: Put the path that targets the downloaded extracted driver.
 
+
+### IMPORTANT for Action configuration (scrape only few documents without reset index)
+Considering the default usability for running this scraper in VTEX Documents repositories as an github action, the following instructions are needed.
+**(1)** In your config.json, the `start_urls` atribute is required and your first position will always be the page root URL. Ex: https://domain.com/
+**(1)** Also, set the attribute `is_file_update: true` in your config.json
 ## Useful links
 
 - [Documentation](https://docsearch.algolia.com/)

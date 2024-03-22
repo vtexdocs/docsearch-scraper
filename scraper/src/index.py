@@ -105,7 +105,7 @@ def run_config(config):
     print("")
 
     if DocumentationSpider.NB_INDEXED > 0:
-        # algolia_helper.commit_tmp_index()
+        algolia_helper.commit_tmp_index()
         print('Nb hits: {}'.format(DocumentationSpider.NB_INDEXED))
         config.update_nb_hits_value(DocumentationSpider.NB_INDEXED)
     else:

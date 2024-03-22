@@ -31,7 +31,7 @@ class AlgoliaHelper:
         record_count = len(records)
 
         for i in range(0, record_count, 50):
-            self.algolia_index.save_objects(records[i:i + 50])
+            self.algolia_index_tmp.save_objects(records[i:i + 50])
 
         color = "96" if from_sitemap else "94"
 
@@ -44,14 +44,13 @@ class AlgoliaHelper:
         for _, value in list(synonyms.items()):
             synonyms_list.append(value)
 
-        self.algolia_index.save_synonyms(synonyms_list)
+        self.algolia_index_tmp.save_synonyms(synonyms_list)
         print(
             '\033[94m> DocSearch: \033[0m Synonyms (\033[93m{} synonyms\033[0m)'.format(
                 len(synonyms_list)))
 
     def commit_tmp_index(self):
         """Overwrite the real index with the temporary one"""
-        # print("Update settings")
         if self.clear_index:
             try:
                 print("Cleaning index")
@@ -61,4 +60,5 @@ class AlgoliaHelper:
                 print("Ready to Scraping")
             except Exception:
                 print("Couldn't clear index records")
+
         self.algolia_client.move_index(self.index_name_tmp, self.index_name)

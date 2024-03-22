@@ -17,7 +17,22 @@ from scrapy.spidermiddlewares.httperror import HttpError
 
 from scrapy.exceptions import CloseSpider
 
+from algoliasearch.search_client import SearchClient
+
 EXIT_CODE_EXCEEDED_RECORDS = 4
+
+def parse_file(file_path):
+    if len(file_path) == 0:
+        return False
+    *path, language, file = file_path.split("/")
+    filename, extension = file.split(".")
+    if extension == 'md':
+        return  {
+            'filename': filename,
+            'language': language,
+            'path': '/'.join(path)
+        }
+    return False
 
 
 class DocumentationSpider(CrawlSpider, SitemapSpider):
@@ -66,7 +81,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         # Scrapy config
         self.name = config.index_name
         self.allowed_domains = config.allowed_domains
-        self.start_urls_full = config.start_urls
         self.start_urls = [start_url['url'] for start_url in config.start_urls]
         # We need to ensure that the stop urls are scheme agnostic too if it represents URL
         self.stop_urls = [DocumentationSpider.to_any_scheme(stop_url) for
@@ -79,24 +93,54 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         self.remove_get_params = config.remove_get_params
         self.strict_redirect = config.strict_redirect
         self.nb_hits_max = config.nb_hits_max
+
+        self.is_file_update = config.is_file_update
+        self.added_files = config.added_files
+        self.removed_files = config.removed_files
+        self.updated_files = config.updated_files
+        self.docs_to_add = []
+        self.docs_to_remove = []
+        self.app_id = config.app_id
+        self.api_key = config.api_key
+        self.index_name = config.index_name
+
         super(DocumentationSpider, self).__init__(*args, **kwargs)
 
         # Get rid of scheme consideration
         # Start_urls must stays authentic URL in order to be reached, we build agnostic scheme regex based on those URL
         start_urls_any_scheme = [DocumentationSpider.to_any_scheme(start_url)
                                  for start_url in self.start_urls] if not config.sitemap_urls else ['']
-        link_extractor = LxmlLinkExtractor(
-            allow=start_urls_any_scheme,
-            deny=self.stop_urls,
-            tags=('a', 'area', 'iframe'),
-            attrs=('href', 'src'),
-            canonicalize=(not config.js_render or not config.use_anchors)
-        )
 
-        DocumentationSpider.rules = [
-            Rule(link_extractor, callback=self.parse_from_start_url,
-                 follow=True),
-        ]
+        if not self.is_file_update:
+            link_extractor = LxmlLinkExtractor(
+                allow=start_urls_any_scheme,
+                deny=self.stop_urls,
+                tags=('a', 'area', 'iframe'),
+                attrs=('href', 'src'),
+                canonicalize=(not config.js_render or not config.use_anchors)
+            )
+
+            DocumentationSpider.rules = [
+                Rule(link_extractor, callback=self.parse_from_start_url,
+                    follow=False if self.is_file_update else True),
+            ]
+
+        # Convert file paths to get slugs for crawl or remove records
+        if self.is_file_update:
+            for item in self.added_files.split(' '):
+                parsedContent = parse_file(item)
+                if(parsedContent):
+                    self.docs_to_add.append(parsedContent)
+            for item in self.removed_files.split(' '):
+                parsedContent = parse_file(item)
+                if(parsedContent):
+                    self.docs_to_remove.append(parsedContent)
+            for item in self.updated_files.split(' '):
+                parsedContent = parse_file(item)
+                if(parsedContent):
+                    self.docs_to_add.append(parsedContent)
+                    self.docs_to_remove.append(parsedContent)
+
 
         # START _init_ part from SitemapSpider
         # We son't want to check anything if we don't even have a sitemap URL
@@ -121,19 +165,41 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         super(DocumentationSpider, self)._compile_rules()
 
     def start_requests(self):
-        # We crawl according to the sitemap
-        for url in self.sitemap_urls:
-            yield Request(url, callback=self._parse_sitemap,
-                          meta={
-                              "alternative_links": DocumentationSpider.to_other_scheme(
-                                  url)
-                          },
-                          flags=['sitemap'],
-                          errback=self.errback_alternative_link)
-        # Redirection is neither an error (4XX status) nor a success (2XX) if dont_redirect=False, thus we force it
+        # VTEXDocs: crawl according to the file updates
+        if self.is_file_update:
+            self.remove_records()
+            try:
+                for value in self.docs_to_add:
+                    url_bar = '' if self.start_urls[0][-1] == '/' else '/'
+                    has_path = f'&path={value["path"]}' if value["path"] else ''
+                    has_language = f'language={value["language"]}' if value["language"] else ''
+                    url = f'{self.start_urls[0]}{url_bar}api/docs/{value["filename"]}?{has_language}{has_path}'
 
+                    yield Request(url, callback=self.parse_from_files,
+                                meta={
+                                    "alternative_links": DocumentationSpider.to_other_scheme(
+                                        url)
+                                },
+                                errback=self.errback_alternative_link)
+            except Exception as e:
+                print("Error: ", e)
+                
+        # We crawl according to the sitemap
+        elif self.sitemap_urls:
+            for url in self.sitemap_urls:
+                try:
+                    yield Request(url, callback=self._parse_sitemap,
+                                meta={
+                                    "alternative_links": DocumentationSpider.to_other_scheme(
+                                        url)
+                                },
+                                flags=['sitemap'],
+                                errback=self.errback_alternative_link)
+                except Exception as e:
+                    print("The error is: ", e)
+        # Redirection is neither an error (4XX status) nor a success (2XX) if dont_redirect=False, thus we force it
         # We crawl the start URL in order to ensure we didn't miss anything (Even if we used the sitemap)
-        if not self.sitemap_urls:
+        else:
             for url in self.start_urls:
                 yield Request(url,
                             callback=self.parse_from_start_url if self.scrape_start_urls else self.parse,
@@ -159,6 +225,25 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
             raise ValueError(self.reason_to_stop)
             exit(EXIT_CODE_EXCEEDED_RECORDS)
 
+    def remove_records(self):
+        if len(self.docs_to_remove) == 0:
+            return
+        try:
+            algolia_client = SearchClient.create(self.app_id, self.api_key)
+            algolia_index = algolia_client.init_index(self.index_name)
+            delete_objs = []
+            for item in self.docs_to_remove:
+                print("\033[94m> Deleting: \033[0m " + item['filename'] + ", language: " + item['language'])
+                records = algolia_index.browse_objects({
+                    'filters': f"slug:'{item['filename']}' AND language:'{item['language']}'",
+                    'attributesToRetrieve': ["objectID"]
+                })
+                objs = list(map(lambda x: x['objectID'], records))
+                delete_objs.extend(objs)
+            # algolia_index.delete_objects(delete_objs)
+        except Exception as e:
+            print('Error on delete', e)
+
     def parse_from_sitemap(self, response):
         if self.reason_to_stop is not None:
             raise CloseSpider(reason=self.reason_to_stop)
@@ -169,6 +254,18 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         else:
             self.add_records(response, from_sitemap=True)
             # We don't return self.parse(response) in order to avoid crawling those web page
+
+    def parse_from_files(self, response):
+        if self.reason_to_stop is not None:
+            raise CloseSpider(reason=self.reason_to_stop)
+
+        if self.is_rules_compliant(response):
+            self.add_records(response, from_sitemap=False)
+
+        else:
+            print("\033[94m> Ignored: from start url\033[0m " + response.url)
+
+        return self.parse(response)
 
     def parse_from_start_url(self, response):
         if self.reason_to_stop is not None:
