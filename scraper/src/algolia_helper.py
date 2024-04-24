@@ -14,17 +14,26 @@ class AlgoliaHelper:
         self.index_name = index_name
         self.index_name_tmp = index_name_tmp
         self.algolia_index = self.algolia_client.init_index(self.index_name)
+
+
         self.algolia_index_tmp = self.algolia_client.init_index(
             self.index_name_tmp)
-        self.algolia_client.copy_rules(
-            self.index_name,
-            self.index_name_tmp
-        )
-        self.algolia_index_tmp.set_settings(settings)
+
         self.clear_index = clear_index
 
-        if len(query_rules) > 0:
-            self.algolia_index_tmp.save_rules(query_rules, True, True)
+        if self.clear_index:
+            """Initialize the tmp-index empty"""
+            self.algolia_client.copy_rules(
+                self.index_name,
+                self.index_name_tmp
+            )
+            self.algolia_index_tmp.set_settings(settings)
+            if len(query_rules) > 0:
+                self.algolia_index_tmp.save_rules(query_rules, True, True)
+        else:
+            """Initialize the tmp-index with an copy of curr index content"""
+            self.algolia_client.copy_index(index_name, index_name_tmp)
+
 
     def add_records(self, records, url, from_sitemap):
         """Add new records to the temporary index"""
@@ -50,15 +59,15 @@ class AlgoliaHelper:
                 len(synonyms_list)))
 
     def commit_tmp_index(self):
-        """Overwrite the real index with the temporary one"""
+        """Clear index (if needed) after all scraping to prevent search break on production"""
         if self.clear_index:
             try:
                 print("Cleaning index")
 
                 self.algolia_index.clear_objects()
 
-                print("Ready to Scraping")
+                print("Index Clean!")
             except Exception:
                 print("Couldn't clear index records")
-
+        """Overwrite the real index with the temporary one"""
         self.algolia_client.move_index(self.index_name_tmp, self.index_name)
