@@ -147,15 +147,15 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                     if(parsed_content):
                         self.docs_to_add.append(parsed_content)
                         self.docs_to_remove.append(parsed_content)
-            if isinstance(self.renamed_files, str):
-                print('RENAMED', self.renamed_files)
-                for item in self.renamed_files.split(' '):
-                    [old_file, new_file] = item.split(',')
-                    old_parsed_content = parse_file(old_file)
-                    new_parsed_content = parse_file(new_file)
-                    if(old_parsed_content and new_parsed_content):
-                        self.docs_to_add.append(new_parsed_content)
-                        self.docs_to_remove.append(old_parsed_content)
+            # if isinstance(self.renamed_files, str):
+            #     print('RENAMED', self.renamed_files)
+            #     for item in self.renamed_files.split(' '):
+            #         [old_file, new_file] = item.split(',')
+            #         old_parsed_content = parse_file(old_file)
+            #         new_parsed_content = parse_file(new_file)
+            #         if(old_parsed_content and new_parsed_content):
+            #             self.docs_to_add.append(new_parsed_content)
+            #             self.docs_to_remove.append(old_parsed_content)
 
 
         # START _init_ part from SitemapSpider
