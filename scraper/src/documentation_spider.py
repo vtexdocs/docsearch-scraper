@@ -259,6 +259,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
             # algolia_index.delete_objects(delete_objs)
         except Exception as e:
             print('Error on delete', e)
+            pass
 
     def parse_from_sitemap(self, response):
         if self.reason_to_stop is not None:
