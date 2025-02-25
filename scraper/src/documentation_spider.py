@@ -135,19 +135,19 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         if self.is_file_update:
             if isinstance(self.added_files, str):
                 print('ADDED: ', self.added_files)
-                for item in self.added_files.split(' '):
+                for item in self.added_files.split(','):
                     parsed_content = parse_file(item)
                     if(parsed_content):
                         self.docs_to_add.append(parsed_content)
             if isinstance(self.removed_files, str):
                 print('REMOVED: ', self.removed_files)
-                for item in self.removed_files.split(' '):
+                for item in self.removed_files.split(','):
                     parsed_content = parse_file(item)
                     if(parsed_content):
                         self.docs_to_remove.append(parsed_content)
             if isinstance(self.updated_files, str):
                 print('UPDATED: ', self.updated_files)
-                for item in self.updated_files.split(' '):
+                for item in self.updated_files.split(','):
                     parsed_content = parse_file(item)
                     if(parsed_content):
                         self.docs_to_add.append(parsed_content)
