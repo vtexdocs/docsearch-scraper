@@ -25,6 +25,8 @@ def parse_file(file_path):
     if len(file_path) == 0:
         return False
 
+    print("FILE PATH: ", file_path)
+
     extension = file_path.split(".")[1]
     if extension == 'md':    
         filename = file_path.split(".")[0].split("/")[-1]
