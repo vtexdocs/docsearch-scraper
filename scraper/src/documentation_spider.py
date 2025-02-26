@@ -187,6 +187,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
 
     def start_requests(self):
         # VTEXDocs: crawl according to the file updates
+        # This method is used for the Help Center, the assembled URL won't work for the Developer Portal 
         if self.is_file_update:
             self.remove_records()
             try:
@@ -206,6 +207,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                 print("Error: ", e)
                 
         # We crawl according to the sitemap
+        # This method is used for the Developer Portal
         elif self.sitemap_urls:
             for url in self.sitemap_urls:
                 try:
