@@ -24,13 +24,18 @@ EXIT_CODE_EXCEEDED_RECORDS = 4
 def parse_file(file_path):
     if len(file_path) == 0:
         return False
-    *path, language, file = file_path.split("/")
-    filename, extension = file.split(".")
-    if extension == 'md':
+
+    print("FILE PATH: ", file_path)
+
+    extension = file_path.split(".")[1]
+    if extension == 'md':    
+        filename = file_path.split(".")[0].split("/")[-1]
+        language = file_path.split("/")[1]
+        type = file_path.split("/")[2]
         return  {
             'filename': filename,
             'language': language,
-            'path': '/'.join(path)
+            'type': type
         }
     return False
 
@@ -130,19 +135,19 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         if self.is_file_update:
             if isinstance(self.added_files, str):
                 print('ADDED: ', self.added_files)
-                for item in self.added_files.split(' '):
+                for item in self.added_files.split(','):
                     parsed_content = parse_file(item)
                     if(parsed_content):
                         self.docs_to_add.append(parsed_content)
             if isinstance(self.removed_files, str):
                 print('REMOVED: ', self.removed_files)
-                for item in self.removed_files.split(' '):
+                for item in self.removed_files.split(','):
                     parsed_content = parse_file(item)
                     if(parsed_content):
                         self.docs_to_remove.append(parsed_content)
             if isinstance(self.updated_files, str):
                 print('UPDATED: ', self.updated_files)
-                for item in self.updated_files.split(' '):
+                for item in self.updated_files.split(','):
                     parsed_content = parse_file(item)
                     if(parsed_content):
                         self.docs_to_add.append(parsed_content)
@@ -182,14 +187,15 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
 
     def start_requests(self):
         # VTEXDocs: crawl according to the file updates
+        # This method is used for the Help Center, the assembled URL won't work for the Developer Portal 
         if self.is_file_update:
             self.remove_records()
             try:
                 for value in self.docs_to_add:
                     url_bar = '' if self.start_urls[0][-1] == '/' else '/'
-                    has_path = f'&path={value["path"]}' if value["path"] else ''
-                    has_language = f'language={value["language"]}' if value["language"] else ''
-                    url = f'{self.start_urls[0]}{url_bar}api/docs/{value["filename"]}?{has_language}{has_path}'
+                    has_language = value["language"] if value["language"] else ''
+                    doc_type = f'docs/{value["type"]}' if value["type"] == "tutorials" or value["type"] == "tutorials" else value["type"]
+                    url = f'{self.start_urls[0]}{url_bar}{has_language}/{doc_type}/{value["filename"]}'
 
                     yield Request(url, callback=self.parse_from_files,
                                 meta={
@@ -201,6 +207,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                 print("Error: ", e)
                 
         # We crawl according to the sitemap
+        # This method is used for the Developer Portal
         elif self.sitemap_urls:
             for url in self.sitemap_urls:
                 try:
