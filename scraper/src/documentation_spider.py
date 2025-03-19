@@ -194,7 +194,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                 for value in self.docs_to_add:
                     url_bar = '' if self.start_urls[0][-1] == '/' else '/'
                     has_language = value["language"] if value["language"] else ''
-                    doc_type = f'docs/{value["type"]}' if value["type"] == "tutorials" or value["type"] == "tutorials" else value["type"]
+                    doc_type = f'docs/{value["type"]}' if value["type"] == "tutorials" or value["type"] == "tracks" else value["type"]
                     url = f'{self.start_urls[0]}{url_bar}{has_language}/{doc_type}/{value["filename"]}'
 
                     yield Request(url, callback=self.parse_from_files,
