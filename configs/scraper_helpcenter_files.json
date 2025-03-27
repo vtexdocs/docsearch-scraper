@@ -5,7 +5,6 @@
   ],
   "stop_urls": [],
   "is_file_update": true,
-  "sitemap_alternate_links": true,
   "scrape_start_urls": false,
   "selectors": {
     "lvl0": "article .title, article h1",
