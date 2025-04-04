@@ -28,7 +28,7 @@ def parse_file(file_path):
     print("FILE PATH: ", file_path)
 
     extension = file_path.split(".")[1]
-    if extension == 'md':    
+    if extension in ['md', 'mdx']:
         filename = file_path.split(".")[0].split("/")[-1]
         language = file_path.split("/")[1]
         type = file_path.split("/")[2]
@@ -336,7 +336,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         """
         if hasattr(failure.value, 'response'):
             if hasattr(failure.value.response, 'status'):
-                self.logger.error('Http Status:%s on %s',
+                self.logger.error('Http Status:%s on %s TESTEEEEEE',
                                   failure.value.response.status,
                                   failure.value.response.url)
             else:
