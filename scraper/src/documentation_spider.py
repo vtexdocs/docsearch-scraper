@@ -10,6 +10,7 @@ from scrapy.spiders import SitemapSpider
 from scrapy.spiders.sitemap import regex
 import re
 import os
+import time
 
 # End of import for the sitemap behavior
 
@@ -200,7 +201,10 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                     yield Request(url, callback=self.parse_from_files,
                                 meta={
                                     "alternative_links": DocumentationSpider.to_other_scheme(
-                                        url)
+                                        url),
+                                    "retry_count": 0,  # Initialize retry count
+                                    "max_retries": 3,   # Set maximum retries
+                                    "sleep_time": 1.0  # Add 1 second sleep between retries
                                 },
                                 errback=self.errback_alternative_link)
             except Exception as e:
@@ -214,7 +218,8 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                     yield Request(url, callback=self._parse_sitemap,
                                 meta={
                                     "alternative_links": DocumentationSpider.to_other_scheme(
-                                        url)
+                                        url),
+                                    "sleep_time": 1.0  # Add sleep time
                                 },
                                 flags=['sitemap'],
                                 errback=self.errback_alternative_link)
@@ -230,7 +235,8 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                             # crawling spider acknowledge the content by parsing it with the built-in method
                             meta={
                                 "alternative_links": DocumentationSpider.to_other_scheme(
-                                    url)
+                                    url),
+                                "sleep_time": 1.0  # Add sleep time
                             },
                             errback=self.errback_alternative_link)
 
@@ -331,34 +337,48 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
 
     def errback_alternative_link(self, failure):
         """
-        This error callback will launch the same request with the alternative_links if there are some left
+        This error callback will first attempt to retry the failed request up to max_retries.
+        If retries are exhausted, it will try alternative_links if there are some left.
         Only for start_urls and sitemap_urls
         """
         if hasattr(failure.value, 'response'):
             if hasattr(failure.value.response, 'status'):
-                self.logger.error('Http Status:%s on %s TESTEEEEEE',
+                self.logger.error('Http Status:%s on %s',
                                   failure.value.response.status,
                                   failure.value.response.url)
             else:
                 self.logger.error('Failure : %s', failure.value)
-
         else:
             self.logger.error('Failure without response %s', failure.value)
 
         if failure.check(HttpError):
-            # these exceptions come from HttpError spider middleware
             meta = failure.request.meta
-            meta["alternative_fallback"] = True
+            retry_count = meta.get("retry_count", 0)
+            max_retries = meta.get("max_retries", 3)
+            sleep_time = meta.get("sleep_time", 1.0)
 
+            # First try retrying the same URL
+            if retry_count < max_retries:
+                retry_count += 1
+                self.logger.info(f'Retrying request ({retry_count}/{max_retries}) after {sleep_time}s sleep: {failure.request.url}')
+                time.sleep(sleep_time)  # Sleep before retry
+                meta["retry_count"] = retry_count
+                yield failure.request.replace(
+                    meta=meta
+                )
+                return
+
+            # If retries exhausted, try alternative links
+            meta["alternative_fallback"] = True
             if len(meta["alternative_links"]) > 0:
                 alternative_link = meta["alternative_links"].pop(0)
                 self.logger.error('Alternative link: %s', alternative_link)
+                # Reset retry count for new alternative link
+                meta["retry_count"] = 0
                 yield failure.request.replace(
                     url=alternative_link,
                     meta=meta
                 )
-
-                # Other check available such as DNSLookupError, TimeoutError, TCPTimedOutError)...
 
     def __init_sitemap_(self, sitemap_urls, custom_sitemap_rules,
                         sitemap_alternate_links):
