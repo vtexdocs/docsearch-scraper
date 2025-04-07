@@ -351,21 +351,21 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                                   failure.value.response.status,
                                   failure.value.response.url)
                 
-                self.logger.info('running retry condition')
-                
+                print('running retry condition')
+
                 meta = failure.request.meta
                 retry_count = meta.get("retry_count", 0)
                 max_retries = meta.get("max_retries", 3)
                 sleep_time = meta.get("sleep_time", 1.0)
                 
-                self.logger.info('retry_count: %s', retry_count)
-                self.logger.info('max_retries: %s', max_retries)
-                self.logger.info('sleep_time: %s', sleep_time)
+                print('retry_count: %s', retry_count)
+                print('max_retries: %s', max_retries)
+                print('sleep_time: %s', sleep_time)
     
                 # First try retrying the same URL
                 if retry_count < max_retries:
                     retry_count += 1
-                    self.logger.info(f'Retrying request ({retry_count}/{max_retries}) after {sleep_time}s sleep: {failure.request.url}')
+                    print(f'Retrying request ({retry_count}/{max_retries}) after {sleep_time}s sleep: {failure.request.url}')
                     time.sleep(sleep_time)  # Sleep before retry
                     meta["retry_count"] = retry_count
                     yield failure.request.replace(
