@@ -347,7 +347,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         """
         if hasattr(failure.value, 'response'):
             if hasattr(failure.value.response, 'status'):
-                self.logger.error('http Status:%s on %s',
+                self.logger.error('------testeeee------ http Status:%s on %s',
                                   failure.value.response.status,
                                   failure.value.response.url)
                 
