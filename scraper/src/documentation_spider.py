@@ -219,7 +219,9 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                                 meta={
                                     "alternative_links": DocumentationSpider.to_other_scheme(
                                         url),
-                                    "sleep_time": 1.0  # Add sleep time
+                                    "retry_count": 0,  # Initialize retry count
+                                    "max_retries": 3,   # Set maximum retries
+                                    "sleep_time": 1.0  # Add 1 second sleep between retries
                                 },
                                 flags=['sitemap'],
                                 errback=self.errback_alternative_link)
@@ -236,7 +238,9 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                             meta={
                                 "alternative_links": DocumentationSpider.to_other_scheme(
                                     url),
-                                "sleep_time": 1.0  # Add sleep time
+                                    "retry_count": 0,  # Initialize retry count
+                                    "max_retries": 3,   # Set maximum retries
+                                    "sleep_time": 1.0  # Add 1 second sleep between retries
                             },
                             errback=self.errback_alternative_link)
 
@@ -343,7 +347,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         """
         if hasattr(failure.value, 'response'):
             if hasattr(failure.value.response, 'status'):
-                self.logger.error('Http Status:%s on %s',
+                self.logger.error('TESTE -------------- Http Status:%s on %s',
                                   failure.value.response.status,
                                   failure.value.response.url)
             else:
@@ -356,6 +360,11 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
             retry_count = meta.get("retry_count", 0)
             max_retries = meta.get("max_retries", 3)
             sleep_time = meta.get("sleep_time", 1.0)
+            
+            self.logger.info('running retry condition')
+            self.logger.info('retry_count: %s', retry_count)
+            self.logger.info('max_retries: %s', max_retries)
+            self.logger.info('sleep_time: %s', sleep_time)
 
             # First try retrying the same URL
             if retry_count < max_retries:
