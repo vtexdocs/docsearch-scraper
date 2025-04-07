@@ -347,47 +347,48 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         """
         if hasattr(failure.value, 'response'):
             if hasattr(failure.value.response, 'status'):
-                self.logger.error('TESTE -------------- Http Status:%s on %s',
+                self.logger.error('http Status:%s on %s',
                                   failure.value.response.status,
                                   failure.value.response.url)
+                
+                self.logger.info('running retry condition')
+                
+                meta = failure.request.meta
+                retry_count = meta.get("retry_count", 0)
+                max_retries = meta.get("max_retries", 3)
+                sleep_time = meta.get("sleep_time", 1.0)
+                
+                self.logger.info('retry_count: %s', retry_count)
+                self.logger.info('max_retries: %s', max_retries)
+                self.logger.info('sleep_time: %s', sleep_time)
+    
+                # First try retrying the same URL
+                if retry_count < max_retries:
+                    retry_count += 1
+                    self.logger.info(f'Retrying request ({retry_count}/{max_retries}) after {sleep_time}s sleep: {failure.request.url}')
+                    time.sleep(sleep_time)  # Sleep before retry
+                    meta["retry_count"] = retry_count
+                    yield failure.request.replace(
+                        meta=meta
+                    )
+                    return
+    
+                # If retries exhausted, try alternative links
+                meta["alternative_fallback"] = True
+                if len(meta["alternative_links"]) > 0:
+                    alternative_link = meta["alternative_links"].pop(0)
+                    self.logger.error('Alternative link: %s', alternative_link)
+                    # Reset retry count for new alternative link
+                    meta["retry_count"] = 0
+                    yield failure.request.replace(
+                        url=alternative_link,
+                        meta=meta
+                    )
+
             else:
                 self.logger.error('Failure : %s', failure.value)
         else:
             self.logger.error('Failure without response %s', failure.value)
-
-        if failure.check(HttpError):
-            meta = failure.request.meta
-            retry_count = meta.get("retry_count", 0)
-            max_retries = meta.get("max_retries", 3)
-            sleep_time = meta.get("sleep_time", 1.0)
-            
-            self.logger.info('running retry condition')
-            self.logger.info('retry_count: %s', retry_count)
-            self.logger.info('max_retries: %s', max_retries)
-            self.logger.info('sleep_time: %s', sleep_time)
-
-            # First try retrying the same URL
-            if retry_count < max_retries:
-                retry_count += 1
-                self.logger.info(f'Retrying request ({retry_count}/{max_retries}) after {sleep_time}s sleep: {failure.request.url}')
-                time.sleep(sleep_time)  # Sleep before retry
-                meta["retry_count"] = retry_count
-                yield failure.request.replace(
-                    meta=meta
-                )
-                return
-
-            # If retries exhausted, try alternative links
-            meta["alternative_fallback"] = True
-            if len(meta["alternative_links"]) > 0:
-                alternative_link = meta["alternative_links"].pop(0)
-                self.logger.error('Alternative link: %s', alternative_link)
-                # Reset retry count for new alternative link
-                meta["retry_count"] = 0
-                yield failure.request.replace(
-                    url=alternative_link,
-                    meta=meta
-                )
 
     def __init_sitemap_(self, sitemap_urls, custom_sitemap_rules,
                         sitemap_alternate_links):
