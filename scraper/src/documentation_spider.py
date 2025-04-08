@@ -189,10 +189,19 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
     def start_requests(self):
         # VTEXDocs: crawl according to the file updates
         # This method is used for the Help Center, the assembled URL won't work for the Developer Portal 
+
+        # Initialize counters and lists for tracking
+        self.total_files_processed = 0
+        self.successfully_indexed = 0
+        self.failed_indexing = 0
+        self.failed_500_files = []
+        self.failed_404_files = []
+
         if self.is_file_update:
             self.remove_records()
             try:
                 for value in self.docs_to_add:
+                    self.total_files_processed += 1
                     url_bar = '' if self.start_urls[0][-1] == '/' else '/'
                     has_language = value["language"] if value["language"] else ''
                     doc_type = f'docs/{value["type"]}' if value["type"] == "tutorials" or value["type"] == "tracks" else value["type"]
@@ -204,11 +213,19 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                                         url),
                                     "retry_count": 0,  # Initialize retry count
                                     "max_retries": 3,   # Set maximum retries
-                                    "sleep_time": 1.0  # Add 1 second sleep between retries
+                                    "sleep_time": 1.0,  # Add 1 second sleep between retries
+                                    "original_url": url  # Track the original URL
                                 },
                                 errback=self.errback_alternative_link)
             except Exception as e:
                 print("Error: ", e)
+
+            # Print statistics after processing all files
+            print(f"Total files processed: {self.total_files_processed}")
+            print(f"Successfully indexed: {self.successfully_indexed}")
+            print(f"Failed indexing: {self.failed_indexing}")
+            print(f"Files failed with error 500: {self.failed_500_files}")
+            print(f"Files failed with error 404: {self.failed_404_files}")
                 
         # We crawl according to the sitemap
         # This method is used for the Developer Portal
@@ -245,6 +262,8 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                             errback=self.errback_alternative_link)
 
     def add_records(self, response, from_sitemap):
+        if 200 <= response.status < 300:  # Check if the response status is 2xx
+            self.successfully_indexed += 1  # Increment success counter
         records = self.strategy.get_records_from_response(response)
         self.algolia_helper.add_records(records, response.url, from_sitemap)
 
@@ -347,8 +366,9 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         """
         if hasattr(failure.value, 'response'):
             if hasattr(failure.value.response, 'status'):
+                status = failure.value.response.status
                 self.logger.error('------testeeee------ http Status:%s on %s',
-                                  failure.value.response.status,
+                                  status,
                                   failure.value.response.url)
                 
                 print('running retry condition')
@@ -384,6 +404,14 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                         url=alternative_link,
                         meta=meta
                     )
+                else:
+                    # Log final failure
+                    self.failed_indexing += 1
+                    original_url = meta.get("original_url", "Unknown URL")
+                    if status == 500:
+                        self.failed_500_files.append(original_url)
+                    elif status == 404:
+                        self.failed_404_files.append(original_url)
 
             else:
                 self.logger.error('Failure : %s', failure.value)
