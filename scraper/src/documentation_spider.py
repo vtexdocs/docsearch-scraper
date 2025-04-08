@@ -20,6 +20,8 @@ from scrapy.exceptions import CloseSpider
 
 from algoliasearch.search_client import SearchClient
 
+from scrapy import signals  # Import Scrapy signals
+
 EXIT_CODE_EXCEEDED_RECORDS = 4
 
 def parse_file(file_path):
@@ -112,6 +114,9 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         self.index_name = config.index_name
 
         super(DocumentationSpider, self).__init__(*args, **kwargs)
+
+        # Connect to the spider_closed signal to print statistics after the spider finishes
+        self.signals.connect(self.engine_stopped, signals.engine_stopped)
 
         # Get rid of scheme consideration
         # Start_urls must stays authentic URL in order to be reached, we build agnostic scheme regex based on those URL
@@ -219,13 +224,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                                 errback=self.errback_alternative_link)
             except Exception as e:
                 print("Error: ", e)
-
-            # Print statistics after processing all files
-            print(f"Total files processed: {self.total_files_processed}")
-            print(f"Successfully indexed: {self.successfully_indexed}")
-            print(f"Failed indexing: {self.failed_indexing}")
-            print(f"Files failed with error 500: {self.failed_500_files}")
-            print(f"Files failed with error 404: {self.failed_404_files}")
                 
         # We crawl according to the sitemap
         # This method is used for the Developer Portal
@@ -266,7 +264,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
             self.successfully_indexed += 1  # Increment success counter
         else:
             # Log final failure
-            original_url = meta.get("original_url", "Unknown URL")
+            original_url = response.url
             if response.status == 500:
                 self.failed_indexing += 1
                 self.failed_500_files.append(original_url)
@@ -302,7 +300,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                 })
                 objs = list(map(lambda x: x['objectID'], records))
                 delete_objs.extend(objs)
-            # algolia_index.delete_objects(delete_objs)
+            algolia_index.delete_objects(delete_objs)
         except Exception as e:
             print('Error on delete', e)
             pass
@@ -414,6 +412,14 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                         url=alternative_link,
                         meta=meta
                     )
+                else:
+                    # Count errors only after retries and alternative links are exhausted
+                    self.failed_indexing += 1
+                    original_url = meta.get("original_url", "Unknown URL")
+                    if status == 500:
+                        self.failed_500_files.append(failure.request.url)
+                    elif status == 404:
+                        self.failed_404_files.append(failure.request.url)
             else:
                 self.logger.error('Failure : %s', failure.value)
         else:
@@ -431,3 +437,11 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                 c = getattr(self, c)
             self._cbs.append((regex(r), c))
         self._follow = [regex(x) for x in self.sitemap_follow]
+
+    def engine_stopped(self):
+        """Print statistics after the spider finishes."""
+        print(f"Total files processed: {self.total_files_processed}")
+        print(f"Successfully indexed: {self.successfully_indexed}")
+        print(f"Failed indexing: {self.failed_indexing}")
+        print(f"Files failed with error 500: {self.failed_500_files}")
+        print(f"Files failed with error 404: {self.failed_404_files}")
