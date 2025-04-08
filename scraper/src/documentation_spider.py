@@ -85,6 +85,12 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                 other_scheme_urls.append(scheme + url_with_no_scheme)
         return other_scheme_urls
 
+    @classmethod
+    def from_crawler(cls, crawler, *args, **kwargs):
+        spider = super(DocumentationSpider, cls).from_crawler(crawler, *args, **kwargs)
+        crawler.signals.connect(spider.engine_stopped, signal=signals.engine_stopped)
+        return spider
+
     def __init__(self, config, algolia_helper, strategy, *args, **kwargs):
         # Scrapy config
         self.name = config.index_name
@@ -114,9 +120,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         self.index_name = config.index_name
 
         super(DocumentationSpider, self).__init__(*args, **kwargs)
-
-        # Connect to the spider_closed signal to print statistics after the spider finishes
-        self.signals.connect(self.engine_stopped, signals.engine_stopped)
 
         # Get rid of scheme consideration
         # Start_urls must stays authentic URL in order to be reached, we build agnostic scheme regex based on those URL
