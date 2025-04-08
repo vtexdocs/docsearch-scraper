@@ -263,24 +263,28 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                             errback=self.errback_alternative_link)
 
     def add_records(self, response, from_sitemap):
-        if 200 <= response.status < 300:  # Check if the response status is 2xx
+        status = response.status
+        original_url = response.url
+
+        if 200 <= status < 300:  # Check if the response status is 2xx
             self.successfully_indexed += 1  # Increment success counter
+            records = self.strategy.get_records_from_response(response)
+            self.algolia_helper.add_records(records, response.url, from_sitemap)
+            DocumentationSpider.NB_INDEXED += len(records)
         else:
-            # Log final failure
-            original_url = response.url
-            if response.status == 500:
-                self.failed_indexing += 1
+            self.failed_indexing += 1
+            if status == 500:
                 self.failed_500_files.append(original_url)
-            elif response.status == 404:
-                self.failed_indexing += 1
+            elif status == 404:
                 self.failed_404_files.append(original_url)
+            else:
+                # Track other error statuses
+                if not hasattr(self, 'failed_other_files'):
+                    self.failed_other_files = []
+                self.failed_other_files.append({"url": original_url, "status": status})
+            return  # Don't try to process records for failed responses
 
-        records = self.strategy.get_records_from_response(response)
-        self.algolia_helper.add_records(records, response.url, from_sitemap)
-
-        DocumentationSpider.NB_INDEXED += len(records)
-
-        # Arbitrary limit
+        # Arbitrary limit check moved after successful processing
         if self.nb_hits_max > 0 and DocumentationSpider.NB_INDEXED > self.nb_hits_max:
             DocumentationSpider.NB_INDEXED = 0
             self.reason_to_stop = "Too much hits, DocSearch only handle {} records".format(
@@ -378,7 +382,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         if hasattr(failure.value, 'response'):
             if hasattr(failure.value.response, 'status'):
                 status = failure.value.response.status
-                self.logger.error('------tttt------ http Status:%s on %s',
+                self.logger.error('---eeeee------ http Status:%s on %s',
                                   status,
                                   failure.value.response.url)
                 
@@ -418,11 +422,21 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                 else:
                     # Count errors only after retries and alternative links are exhausted
                     self.failed_indexing += 1
-                    original_url = meta.get("original_url", "Unknown URL")
+                    original_url = meta.get("original_url", failure.request.url)
+                    if hasattr(failure.value, 'response'):
+                        status = failure.value.response.status
+                    else:
+                        status = 404  # Assume 404 for connection failures
+                        
                     if status == 500:
-                        self.failed_500_files.append(failure.request.url)
+                        self.failed_500_files.append(original_url)
                     elif status == 404:
-                        self.failed_404_files.append(failure.request.url)
+                        self.failed_404_files.append(original_url)
+                    else:
+                        # Track other error statuses
+                        if not hasattr(self, 'failed_other_files'):
+                            self.failed_other_files = []
+                        self.failed_other_files.append({"url": original_url, "status": status})
             else:
                 self.logger.error('Failure : %s', failure.value)
         else:
@@ -448,3 +462,5 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         print(f"Failed indexing: {self.failed_indexing}")
         print(f"Files failed with error 500: {self.failed_500_files}")
         print(f"Files failed with error 404: {self.failed_404_files}")
+        if hasattr(self, 'failed_other_files'):
+            print(f"Files failed with other errors: {self.failed_other_files}")
