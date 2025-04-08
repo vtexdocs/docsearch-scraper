@@ -431,7 +431,8 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                     if status == 500:
                         self.failed_500_files.append(original_url)
                     elif status == 404:
-                        self.failed_404_files.append(original_url)
+                        self.failed_404_files.append(original_url)  # Ensure 404 is appended
+                        self.logger.error('Final 404 Error logged for URL: %s', original_url)
                     else:
                         # Track other error statuses
                         if not hasattr(self, 'failed_other_files'):
@@ -466,6 +467,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         print(f"Successfully indexed: {self.successfully_indexed}")
         print(f"Failed indexing: {self.failed_indexing}")
         print(f"Files failed with error 500: {self.failed_500_files}")
-        print(f"Files failed with error 404: {self.failed_404_files}")
+        print(f"Files failed with error 404: {self.failed_404_files}")  # Ensure 404 list is printed
         if hasattr(self, 'failed_other_files'):
             print(f"Files failed with other errors: {self.failed_other_files}")
