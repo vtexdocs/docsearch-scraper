@@ -441,6 +441,11 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                 self.logger.error('Failure : %s', failure.value)
         else:
             self.logger.error('Failure without response %s', failure.value)
+            # Handle cases where no response is available (e.g., connection errors)
+            meta = failure.request.meta
+            original_url = meta.get("original_url", failure.request.url)
+            self.failed_indexing += 1
+            self.failed_404_files.append(original_url)  # Assume 404 for missing responses
 
     def __init_sitemap_(self, sitemap_urls, custom_sitemap_rules,
                         sitemap_alternate_links):
