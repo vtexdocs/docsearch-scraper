@@ -264,6 +264,16 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
     def add_records(self, response, from_sitemap):
         if 200 <= response.status < 300:  # Check if the response status is 2xx
             self.successfully_indexed += 1  # Increment success counter
+        else:
+            # Log final failure
+            original_url = meta.get("original_url", "Unknown URL")
+            if response.status == 500:
+                self.failed_indexing += 1
+                self.failed_500_files.append(original_url)
+            elif response.status == 404:
+                self.failed_indexing += 1
+                self.failed_404_files.append(original_url)
+
         records = self.strategy.get_records_from_response(response)
         self.algolia_helper.add_records(records, response.url, from_sitemap)
 
@@ -404,15 +414,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                         url=alternative_link,
                         meta=meta
                     )
-                else:
-                    # Log final failure
-                    self.failed_indexing += 1
-                    original_url = meta.get("original_url", "Unknown URL")
-                    if status == 500:
-                        self.failed_500_files.append(original_url)
-                    elif status == 404:
-                        self.failed_404_files.append(original_url)
-
             else:
                 self.logger.error('Failure : %s', failure.value)
         else:
