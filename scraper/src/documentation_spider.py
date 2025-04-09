@@ -10,7 +10,6 @@ from scrapy.spiders import SitemapSpider
 from scrapy.spiders.sitemap import regex
 import re
 import os
-import time
 
 # End of import for the sitemap behavior
 
@@ -124,6 +123,8 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         self.total_files_processed = 0
         self.successfully_indexed = 0
         self.failed_indexing = 0
+        self.failed_indexing_404 = 0
+        self.failed_indexing_500 = 0
         self.failed_500_files = []
         self.failed_404_files = []
 
@@ -380,8 +381,10 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                     self.failed_indexing += 1
                     if status == 404:
                         self.failed_404_files.append(original_url)
+                        self.failed_indexing_404 += 1
                     elif status == 500:
                         self.failed_500_files.append(original_url)
+                        self.failed_indexing_500 += 1
             else:
                 self.logger.error('No status code in response for %s', original_url)
                 status = 404  # Assume 404 if no status code
@@ -418,6 +421,8 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         print(f"Total files processed:    {self.total_files_processed}")
         print(f"Successfully indexed:     {self.successfully_indexed}")
         print(f"  Total failed:          {self.failed_indexing}")
+        print(f"  404 errors:            {self.failed_indexing_404}")
+        print(f"  500 errors:            {self.failed_indexing_500}")
         
         if self.failed_500_files:
             print("\nFiles failed with 500 error:")
