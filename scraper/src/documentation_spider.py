@@ -387,20 +387,24 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         return True
 
     def errback_alternative_link(self, failure):
-        """
-        This error callback will first attempt to retry the failed request up to max_retries.
-        If retries are exhausted, it will try alternative_links if there are some left.
-        Only for start_urls and sitemap_urls
-        """
         meta = failure.request.meta
         original_url = meta.get("original_url", failure.request.url)
         status = None
 
-        if hasattr(failure.value, 'response') and hasattr(failure.value.response, 'status'):
-            status = failure.value.response.status
-            self.logger.error('HTTP Status:%s on %s', status, original_url)
+        # Get status code and log it for debugging
+        if hasattr(failure.value, 'response'):
+            if hasattr(failure.value.response, 'status'):
+                status = failure.value.response.status
+                self.logger.error('HTTP Status:%s on %s', status, original_url)
+            else:
+                self.logger.error('No status code in response for %s', original_url)
+                status = 404  # Assume 404 if no status code
         else:
             self.logger.error('Connection error for %s: %s', original_url, str(failure.value))
+            status = 404  # Treat connection errors as 404s
+
+        # Log the actual error type for debugging
+        self.logger.error('Failure type: %s', type(failure.value).__name__)
 
         retry_count = meta.get("retry_count", 0)
         max_retries = meta.get("max_retries", 3)
@@ -409,7 +413,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         # First try retrying the same URL
         if retry_count < max_retries:
             retry_count += 1
-            self.logger.info(f'Retrying request ({retry_count}/{max_retries}) after {sleep_time}s sleep: {original_url}')
+            print(f'Retrying request ({retry_count}/{max_retries}) after {sleep_time}s sleep. Status: {status}, URL: {original_url}')
             time.sleep(sleep_time)
             meta["retry_count"] = retry_count
             yield failure.request.replace(meta=meta)
@@ -418,7 +422,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         # If retries exhausted, try alternative links
         if len(meta.get("alternative_links", [])) > 0:
             alternative_link = meta["alternative_links"].pop(0)
-            self.logger.info('Trying alternative link: %s', alternative_link)
+            print('Trying alternative link: %s', alternative_link)
             meta["retry_count"] = 0
             yield failure.request.replace(url=alternative_link, meta=meta)
             return
