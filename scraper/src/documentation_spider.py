@@ -49,6 +49,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
     """
     http_user = os.environ.get('DOCSEARCH_BASICAUTH_USERNAME', None)
     http_pass = os.environ.get('DOCSEARCH_BASICAUTH_PASSWORD', None)
+    NB_INDEXED = 0  # Add this line
     algolia_helper = None
     strategy = None
     js_render = False
@@ -119,15 +120,12 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         self.api_key = config.api_key
         self.index_name = config.index_name
 
-        # Initialize error tracking for different sources
-        self.add_records_failed = 0
-        self.errback_failed = 0
-        self.add_records_500_files = []
-        self.add_records_404_files = []
-        self.add_records_other_files = []
-        self.errback_500_files = []
-        self.errback_404_files = []
-        self.errback_other_files = []
+        # Initialize counters and lists for tracking
+        self.total_files_processed = 0
+        self.successfully_indexed = 0
+        self.failed_indexing = 0
+        self.failed_500_files = []
+        self.failed_404_files = []
 
         super(DocumentationSpider, self).__init__(*args, **kwargs)
 
@@ -208,13 +206,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         # VTEXDocs: crawl according to the file updates
         # This method is used for the Help Center, the assembled URL won't work for the Developer Portal 
 
-        # Initialize counters and lists for tracking
-        self.total_files_processed = 0
-        self.successfully_indexed = 0
-        self.failed_indexing = 0
-        self.failed_500_files = []
-        self.failed_404_files = []
-
         if self.is_file_update:
             self.remove_records()
             try:
@@ -282,19 +273,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
             self.algolia_helper.add_records(records, response.url, from_sitemap)
             DocumentationSpider.NB_INDEXED += len(records)
         else:
-            self.add_records_failed += 1
-            self.failed_indexing += 1  # Keep original counter for backwards compatibility
-            if status == 500:
-                self.add_records_500_files.append(original_url)
-                self.failed_500_files.append(original_url)  # Keep original list for backwards compatibility
-            elif status == 404:
-                self.add_records_404_files.append(original_url)
-                self.failed_404_files.append(original_url)  # Keep original list for backwards compatibility
-            else:
-                self.add_records_other_files.append({"url": original_url, "status": status})
-                if not hasattr(self, 'failed_other_files'):
-                    self.failed_other_files = []
-                self.failed_other_files.append({"url": original_url, "status": status})
             return
 
         # Arbitrary limit check moved after successful processing
@@ -396,56 +374,30 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
             if hasattr(failure.value.response, 'status'):
                 status = failure.value.response.status
                 self.logger.error('HTTP Status:%s on %s', status, original_url)
+
+                # Record errors based on status code
+                if not (original_url in self.failed_404_files or original_url in self.failed_500_files):
+                    self.failed_indexing += 1
+                    if status == 404:
+                        self.failed_404_files.append(original_url)
+                    elif status == 500:
+                        self.failed_500_files.append(original_url)
             else:
                 self.logger.error('No status code in response for %s', original_url)
                 status = 404  # Assume 404 if no status code
         else:
             self.logger.error('Connection error for %s: %s', original_url, str(failure.value))
             status = 404  # Treat connection errors as 404s
+        
+        
 
-        # Log the actual error type for debugging
-        self.logger.error('Failure type: %s', type(failure.value).__name__)
-
-        retry_count = meta.get("retry_count", 0)
-        max_retries = meta.get("max_retries", 3)
-        sleep_time = meta.get("sleep_time", 1.0)
-
-        # First try retrying the same URL
-        if retry_count < max_retries:
-            retry_count += 1
-            print(f'Retrying request ({retry_count}/{max_retries}) after {sleep_time}s sleep. Status: {status}, URL: {original_url}')
-            time.sleep(sleep_time)
-            meta["retry_count"] = retry_count
-            yield failure.request.replace(meta=meta)
-            return
-
-        # If retries exhausted, try alternative links
+        # Try alternative links
         if len(meta.get("alternative_links", [])) > 0:
             alternative_link = meta["alternative_links"].pop(0)
             print('Trying alternative link: %s', alternative_link)
             meta["retry_count"] = 0
             yield failure.request.replace(url=alternative_link, meta=meta)
             return
-
-        # All retries and alternatives exhausted, record the failure
-        self.errback_failed += 1
-        self.failed_indexing += 1  # Keep original counter for backwards compatibility
-        if not status:
-            status = 404
-            
-        if status == 500:
-            self.errback_500_files.append(original_url)
-            self.failed_500_files.append(original_url)  # Keep original list for backwards compatibility
-        elif status == 404:
-            self.errback_404_files.append(original_url)
-            self.failed_404_files.append(original_url)  # Keep original list for backwards compatibility
-        else:
-            if not hasattr(self, 'errback_other_files'):
-                self.errback_other_files = []
-            self.errback_other_files.append({"url": original_url, "status": status})
-            if not hasattr(self, 'failed_other_files'):
-                self.failed_other_files = []
-            self.failed_other_files.append({"url": original_url, "status": status})
 
     def __init_sitemap_(self, sitemap_urls, custom_sitemap_rules,
                         sitemap_alternate_links):
@@ -465,37 +417,15 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         print("\n=== Crawling Statistics ===")
         print(f"Total files processed:    {self.total_files_processed}")
         print(f"Successfully indexed:     {self.successfully_indexed}")
-        print(f"\nErrors by source:")
-        print(f"  From add_records:      {self.add_records_failed}")
-        print(f"  From errback:          {self.errback_failed}")
         print(f"  Total failed:          {self.failed_indexing}")
         
-        if self.add_records_500_files:
-            print("\nFiles failed with 500 error (from add_records):")
-            for url in self.add_records_500_files:
+        if self.failed_500_files:
+            print("\nFiles failed with 500 error:")
+            for url in self.failed_500_files:
                 print(f"  - {url}")
                 
-        if self.errback_500_files:
-            print("\nFiles failed with 500 error (from errback):")
-            for url in self.errback_500_files:
+        if self.failed_404_files:
+            print("\nFiles failed with 404 error:")
+            for url in self.failed_404_files:
                 print(f"  - {url}")
-                
-        if self.add_records_404_files:
-            print("\nFiles failed with 404 error (from add_records):")
-            for url in self.add_records_404_files:
-                print(f"  - {url}")
-                
-        if self.errback_404_files:
-            print("\nFiles failed with 404 error (from errback):")
-            for url in self.errback_404_files:
-                print(f"  - {url}")
-                
-        if self.add_records_other_files:
-            print("\nOther errors (from add_records):")
-            for failure in self.add_records_other_files:
-                print(f"  - {failure['url']} (Status: {failure['status']})")
-                
-        if hasattr(self, 'errback_other_files') and self.errback_other_files:
-            print("\nOther errors (from errback):")
-            for failure in self.errback_other_files:
-                print(f"  - {failure['url']} (Status: {failure['status']})")
+
