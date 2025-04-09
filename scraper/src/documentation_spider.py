@@ -427,10 +427,10 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         if self.failed_500_files:
             print("\nFiles failed with 500 error:")
             for url in self.failed_500_files:
-                print(f"  - {url}")
+                print(f"{url}")
                 
         if self.failed_404_files:
             print("\nFiles failed with 404 error:")
             for url in self.failed_404_files:
-                print(f"  - {url}")
+                print(f"{url}")
 
