@@ -21,6 +21,9 @@ from algoliasearch.search_client import SearchClient
 
 from scrapy import signals  # Import Scrapy signals
 
+import requests
+from datetime import datetime
+
 EXIT_CODE_EXCEEDED_RECORDS = 4
 
 def parse_file(file_path):
@@ -221,9 +224,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                                 meta={
                                     "alternative_links": DocumentationSpider.to_other_scheme(
                                         url),
-                                    "retry_count": 0,  # Initialize retry count
-                                    "max_retries": 3,   # Set maximum retries
-                                    "sleep_time": 1.0,  # Add 1 second sleep between retries
                                     "original_url": url  # Track the original URL
                                 },
                                 errback=self.errback_alternative_link)
@@ -239,9 +239,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                                 meta={
                                     "alternative_links": DocumentationSpider.to_other_scheme(
                                         url),
-                                    "retry_count": 0,  # Initialize retry count
-                                    "max_retries": 3,   # Set maximum retries
-                                    "sleep_time": 1.0  # Add 1 second sleep between retries
                                 },
                                 flags=['sitemap'],
                                 errback=self.errback_alternative_link)
@@ -258,9 +255,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                             meta={
                                 "alternative_links": DocumentationSpider.to_other_scheme(
                                     url),
-                                    "retry_count": 0,  # Initialize retry count
-                                    "max_retries": 3,   # Set maximum retries
-                                    "sleep_time": 1.0  # Add 1 second sleep between retries
                             },
                             errback=self.errback_alternative_link)
 
@@ -398,7 +392,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         if len(meta.get("alternative_links", [])) > 0:
             alternative_link = meta["alternative_links"].pop(0)
             print('Trying alternative link: %s', alternative_link)
-            meta["retry_count"] = 0
             yield failure.request.replace(url=alternative_link, meta=meta)
             return
 
@@ -428,9 +421,27 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
             print("\nFiles failed with 500 error:")
             for url in self.failed_500_files:
                 print(f"{url}")
+                requests.post(
+                    "https://hooks.zapier.com/hooks/catch/12058878/20il2ne/",
+                    json={
+                        "url": url,
+                        "status": "500", 
+                        "date": datetime.now().strftime("%Y-%m-%d"),
+                        "time": datetime.now().strftime("%H:%M:%S")
+                    }
+                )
                 
         if self.failed_404_files:
             print("\nFiles failed with 404 error:")
             for url in self.failed_404_files:
                 print(f"{url}")
+                requests.post(
+                    "https://hooks.zapier.com/hooks/catch/12058878/20il2ne/",
+                    json={
+                        "url": url,
+                        "error_type": "404",
+                        "date": datetime.now().strftime("%Y-%m-%d"),
+                        "time": datetime.now().strftime("%H:%M:%S")
+                    }
+                )
 
