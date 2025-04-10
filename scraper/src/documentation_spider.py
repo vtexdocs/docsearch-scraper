@@ -21,6 +21,9 @@ from algoliasearch.search_client import SearchClient
 
 from scrapy import signals  # Import Scrapy signals
 
+import requests
+from datetime import datetime
+
 EXIT_CODE_EXCEEDED_RECORDS = 4
 
 def parse_file(file_path):
@@ -418,9 +421,27 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
             print("\nFiles failed with 500 error:")
             for url in self.failed_500_files:
                 print(f"{url}")
+                requests.post(
+                    "https://hooks.zapier.com/hooks/catch/12058878/20il2ne/",
+                    json={
+                        "url": url,
+                        "status": "500", 
+                        "date": datetime.now().strftime("%Y-%m-%d"),
+                        "time": datetime.now().strftime("%H:%M:%S")
+                    }
+                )
                 
         if self.failed_404_files:
             print("\nFiles failed with 404 error:")
             for url in self.failed_404_files:
                 print(f"{url}")
+                requests.post(
+                    "https://hooks.zapier.com/hooks/catch/12058878/20il2ne/",
+                    json={
+                        "url": url,
+                        "error_type": "404",
+                        "date": datetime.now().strftime("%Y-%m-%d"),
+                        "time": datetime.now().strftime("%H:%M:%S")
+                    }
+                )
 
