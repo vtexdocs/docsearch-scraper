@@ -221,9 +221,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                                 meta={
                                     "alternative_links": DocumentationSpider.to_other_scheme(
                                         url),
-                                    "retry_count": 0,  # Initialize retry count
-                                    "max_retries": 3,   # Set maximum retries
-                                    "sleep_time": 1.0,  # Add 1 second sleep between retries
                                     "original_url": url  # Track the original URL
                                 },
                                 errback=self.errback_alternative_link)
@@ -239,9 +236,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                                 meta={
                                     "alternative_links": DocumentationSpider.to_other_scheme(
                                         url),
-                                    "retry_count": 0,  # Initialize retry count
-                                    "max_retries": 3,   # Set maximum retries
-                                    "sleep_time": 1.0  # Add 1 second sleep between retries
                                 },
                                 flags=['sitemap'],
                                 errback=self.errback_alternative_link)
@@ -258,9 +252,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                             meta={
                                 "alternative_links": DocumentationSpider.to_other_scheme(
                                     url),
-                                    "retry_count": 0,  # Initialize retry count
-                                    "max_retries": 3,   # Set maximum retries
-                                    "sleep_time": 1.0  # Add 1 second sleep between retries
                             },
                             errback=self.errback_alternative_link)
 
@@ -398,7 +389,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         if len(meta.get("alternative_links", [])) > 0:
             alternative_link = meta["alternative_links"].pop(0)
             print('Trying alternative link: %s', alternative_link)
-            meta["retry_count"] = 0
             yield failure.request.replace(url=alternative_link, meta=meta)
             return
 
