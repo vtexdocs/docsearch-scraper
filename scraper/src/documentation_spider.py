@@ -439,7 +439,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                     "https://hooks.zapier.com/hooks/catch/12058878/20il2ne/",
                     json={
                         "url": url,
-                        "error_type": "404",
+                        "status": "404",
                         "date": datetime.now().strftime("%Y-%m-%d"),
                         "time": datetime.now().strftime("%H:%M:%S")
                     }
