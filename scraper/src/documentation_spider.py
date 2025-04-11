@@ -38,6 +38,7 @@ def parse_file(file_path):
         language = file_path.split("/")[1]
         type = file_path.split("/")[2]
         return  {
+            'file_path': file_path,
             'filename': filename,
             'language': language,
             'type': type
@@ -128,8 +129,10 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         self.failed_indexing = 0
         self.failed_indexing_404 = 0
         self.failed_indexing_500 = 0
-        self.failed_500_files = []
-        self.failed_404_files = []
+        self.failed_500_urls = []
+        self.failed_404_urls = []
+        self.failed_500_filepaths = []
+        self.failed_404_filepaths = []
 
         super(DocumentationSpider, self).__init__(*args, **kwargs)
 
@@ -224,7 +227,8 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                                 meta={
                                     "alternative_links": DocumentationSpider.to_other_scheme(
                                         url),
-                                    "original_url": url  # Track the original URL
+                                    "original_url": url,  # Track the original URL
+                                    "file_path": value["file_path"]
                                 },
                                 errback=self.errback_alternative_link)
             except Exception as e:
@@ -362,6 +366,7 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
     def errback_alternative_link(self, failure):
         meta = failure.request.meta
         original_url = meta.get("original_url", failure.request.url)
+        file_path = meta.get("file_path", None)
         status = None
 
         # Get status code and log it for debugging
@@ -371,13 +376,15 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                 self.logger.error('HTTP Status:%s on %s', status, original_url)
 
                 # Record errors based on status code
-                if not (original_url in self.failed_404_files or original_url in self.failed_500_files):
+                if not (original_url in self.failed_404_urls or original_url in self.failed_500_urls):
                     self.failed_indexing += 1
                     if status == 404:
-                        self.failed_404_files.append(original_url)
+                        self.failed_404_urls.append(original_url)
+                        self.failed_404_filepaths.append(file_path)
                         self.failed_indexing_404 += 1
                     elif status == 500:
-                        self.failed_500_files.append(original_url)
+                        self.failed_500_urls.append(original_url)
+                        self.failed_500_filepaths.append(file_path)
                         self.failed_indexing_500 += 1
             else:
                 self.logger.error('No status code in response for %s', original_url)
@@ -417,13 +424,16 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         print(f"  404 errors:            {self.failed_indexing_404}")
         print(f"  500 errors:            {self.failed_indexing_500}")
         
-        if self.failed_500_files:
+        if self.failed_500_urls:
             print("\nFiles failed with 500 error:")
-            for url in self.failed_500_files:
+            for url in self.failed_500_urls:
+                file_path = self.failed_500_filepaths[self.failed_500_urls.index(url)]
+
                 print(f"{url}")
                 requests.post(
                     "https://hooks.zapier.com/hooks/catch/12058878/20il2ne/",
                     json={
+                        "file_path": file_path,
                         "url": url,
                         "status": "500", 
                         "date": datetime.now().strftime("%Y-%m-%d"),
@@ -431,13 +441,16 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                     }
                 )
                 
-        if self.failed_404_files:
+        if self.failed_404_urls:
             print("\nFiles failed with 404 error:")
-            for url in self.failed_404_files:
+            for url in self.failed_404_urls:
+                file_path = self.failed_404_filepaths[self.failed_404_urls.index(url)]
+
                 print(f"{url}")
                 requests.post(
                     "https://hooks.zapier.com/hooks/catch/12058878/20il2ne/",
                     json={
+                        "file_path": file_path,
                         "url": url,
                         "status": "404",
                         "date": datetime.now().strftime("%Y-%m-%d"),
