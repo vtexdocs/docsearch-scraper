@@ -1,7 +1,7 @@
 {
   "index_name": "helpcenter-docs",
   "start_urls": [
-    "https://leafy-mooncake-7c2e5e.netlify.app/"
+    "https://newhelp.vtex.com/"
   ],
   "stop_urls": [],
   "is_file_update": true,
