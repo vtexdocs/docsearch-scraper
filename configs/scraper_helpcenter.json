@@ -1,11 +1,11 @@
 {
   "index_name": "helpcenter-docs",
   "start_urls": [
-    "https://leafy-mooncake-7c2e5e.netlify.app/"
+    "https://newhelp.vtex.com/"
   ],
   "stop_urls": [],
   "sitemap_urls": [
-    "https://leafy-mooncake-7c2e5e.netlify.app/server-sitemap.xml"
+    "https://newhelp.vtex.com/server-sitemap.xml"
   ],
   "sitemap_alternate_links": true,
   "selectors": {
