@@ -193,21 +193,10 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
 
    
     def log_unbroken_pages(self, response):
-        """Log successful page loads to Zapier"""
         if response.status == 200:
             file_path = response.meta.get("file_path")
             url = response.meta.get("original_url")
-            
-            requests.post(
-                "https://hooks.zapier.com/hooks/catch/12058878/20il2ne/",
-                json={
-                    "file_path": file_path,
-                    "url": url,
-                    "status": "200",
-                    "date": datetime.now().strftime("%Y-%m-%d"),
-                    "time": datetime.now().strftime("%H:%M:%S")
-                }
-            )
+            print(f"Successfully loaded: {url} with file path: {file_path}")
         return "200 OK"
 
     def is_rules_compliant(self, response):
