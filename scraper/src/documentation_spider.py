@@ -17,8 +17,6 @@ from scrapy.spidermiddlewares.httperror import HttpError
 
 from scrapy.exceptions import CloseSpider
 
-from algoliasearch.search_client import SearchClient
-
 from scrapy import signals  # Import Scrapy signals
 
 import requests
@@ -125,7 +123,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
 
         # Initialize counters and lists for tracking
         self.total_files_processed = 0
-        self.successfully_indexed = 0
         self.failed_indexing = 0
         self.failed_indexing_404 = 0
         self.failed_indexing_500 = 0
@@ -140,20 +137,6 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
         # Start_urls must stays authentic URL in order to be reached, we build agnostic scheme regex based on those URL
         start_urls_any_scheme = [DocumentationSpider.to_any_scheme(start_url)
                                  for start_url in self.start_urls] if not config.sitemap_urls else ['']
-
-        if not self.is_file_update:
-            link_extractor = LxmlLinkExtractor(
-                allow=start_urls_any_scheme,
-                deny=self.stop_urls,
-                tags=('a', 'area', 'iframe'),
-                attrs=('href', 'src'),
-                canonicalize=(not config.js_render or not config.use_anchors)
-            )
-
-            DocumentationSpider.rules = [
-                Rule(link_extractor, callback=self.parse_from_start_url,
-                    follow=False if self.is_file_update else True),
-            ]
 
         # Convert file paths to get slugs for crawl or remove records
         if self.is_file_update:
@@ -186,35 +169,8 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
             #             self.docs_to_add.append(new_parsed_content)
             #             self.docs_to_remove.append(old_parsed_content)
 
-
-        # START _init_ part from SitemapSpider
-        # We son't want to check anything if we don't even have a sitemap URL
-        if config.sitemap_urls:
-            # In case we don't have a special documentation regex,
-            # we assume that start_urls are there to match a documentation part
-            self.sitemap_urls_regexs =\
-                config.sitemap_urls_regexs if config.sitemap_urls_regexs else start_urls_any_scheme
-
-            sitemap_rules = []
-            if self.sitemap_urls_regexs:
-                for regex in self.sitemap_urls_regexs:
-                    sitemap_rules.append((regex, 'parse_from_sitemap'))
-            else:  # Neither start url nor regex: default, we parse all
-                print("Neither start url nor regex: default, we scrap all")
-                sitemap_rules = [('.*', 'parse_from_sitemap')]
-
-            self.__init_sitemap_(config.sitemap_urls, sitemap_rules,
-                                 config.sitemap_alternate_links)
-            self.force_sitemap_urls_crawling = config.force_sitemap_urls_crawling
-        # END _init_ part from SitemapSpider
-        super(DocumentationSpider, self)._compile_rules()
-
     def start_requests(self):
-        # VTEXDocs: crawl according to the file updates
-        # This method is used for the Help Center, the assembled URL won't work for the Developer Portal 
-
         if self.is_file_update:
-            self.remove_records()
             try:
                 for value in self.docs_to_add:
                     self.total_files_processed += 1
@@ -223,119 +179,36 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
                     doc_type = f'docs/{value["type"]}' if value["type"] == "tutorials" or value["type"] == "tracks" else value["type"]
                     url = f'{self.start_urls[0]}{url_bar}{has_language}/{doc_type}/{value["filename"]}'
 
-                    yield Request(url, callback=self.parse_from_files,
-                                meta={
-                                    "alternative_links": DocumentationSpider.to_other_scheme(
-                                        url),
-                                    "original_url": url,  # Track the original URL
-                                    "file_path": value["file_path"]
-                                },
-                                errback=self.errback_alternative_link)
+                    yield Request(
+                        url, 
+                        callback=self.log_unbroken_pages,
+                        meta={
+                            "file_path": value["file_path"],
+                            "original_url": url
+                        },
+                        errback=self.errback_alternative_link
+                    )
             except Exception as e:
                 print("Error: ", e)
-                
-        # We crawl according to the sitemap
-        # This method is used for the Developer Portal
-        elif self.sitemap_urls:
-            for url in self.sitemap_urls:
-                try:
-                    yield Request(url, callback=self._parse_sitemap,
-                                meta={
-                                    "alternative_links": DocumentationSpider.to_other_scheme(
-                                        url),
-                                },
-                                flags=['sitemap'],
-                                errback=self.errback_alternative_link)
-                except Exception as e:
-                    print("The error is: ", e)
-        # Redirection is neither an error (4XX status) nor a success (2XX) if dont_redirect=False, thus we force it
-        # We crawl the start URL in order to ensure we didn't miss anything (Even if we used the sitemap)
-        else:
-            for url in self.start_urls:
-                yield Request(url,
-                            callback=self.parse_from_start_url if self.scrape_start_urls else self.parse,
-                            # If we wan't to crawl (default behavior) without scraping, we still need to let the
-                            # crawling spider acknowledge the content by parsing it with the built-in method
-                            meta={
-                                "alternative_links": DocumentationSpider.to_other_scheme(
-                                    url),
-                            },
-                            errback=self.errback_alternative_link)
 
-    def add_records(self, response, from_sitemap):
-        status = response.status
-        original_url = response.url
-
-        if 200 <= status < 300:
-            self.successfully_indexed += 1
-            records = self.strategy.get_records_from_response(response)
-            self.algolia_helper.add_records(records, response.url, from_sitemap)
-            DocumentationSpider.NB_INDEXED += len(records)
-        else:
-            return
-
-        # Arbitrary limit check moved after successful processing
-        if self.nb_hits_max > 0 and DocumentationSpider.NB_INDEXED > self.nb_hits_max:
-            DocumentationSpider.NB_INDEXED = 0
-            self.reason_to_stop = "Too much hits, DocSearch only handle {} records".format(
-                int(self.nb_hits_max))
-            raise ValueError(self.reason_to_stop)
-            exit(EXIT_CODE_EXCEEDED_RECORDS)
-
-    def remove_records(self):
-        if len(self.docs_to_remove) == 0:
-            return
-        try:
-            algolia_client = SearchClient.create(self.app_id, self.api_key)
-            algolia_index = algolia_client.init_index(self.index_name)
-            delete_objs = []
-            for item in self.docs_to_remove:
-                print("\033[94m> Deleting: \033[0m " + item['filename'] + ", language: " + item['language'])
-                records = algolia_index.browse_objects({
-                    'filters': f"slug:'{item['filename']}' AND language:'{item['language']}'",
-                    'attributesToRetrieve': ["objectID"]
-                })
-                objs = list(map(lambda x: x['objectID'], records))
-                delete_objs.extend(objs)
-            algolia_index.delete_objects(delete_objs)
-        except Exception as e:
-            print('Error on delete', e)
-            pass
-
-    def parse_from_sitemap(self, response):
-        if self.reason_to_stop is not None:
-            raise CloseSpider(reason=self.reason_to_stop)
-
-        if (not self.force_sitemap_urls_crawling) and (
-                not self.is_rules_compliant(response)):
-            print("\033[94m> Ignored from sitemap:\033[0m " + response.url)
-        else:
-            self.add_records(response, from_sitemap=True)
-            # We don't return self.parse(response) in order to avoid crawling those web page
-
-    def parse_from_files(self, response):
-        if self.reason_to_stop is not None:
-            raise CloseSpider(reason=self.reason_to_stop)
-
-        if self.is_rules_compliant(response):
-            self.add_records(response, from_sitemap=False)
-
-        else:
-            print("\033[94m> Ignored: from start url\033[0m " + response.url)
-
-        return self.parse(response)
-
-    def parse_from_start_url(self, response):
-        if self.reason_to_stop is not None:
-            raise CloseSpider(reason=self.reason_to_stop)
-
-        if self.is_rules_compliant(response):
-            self.add_records(response, from_sitemap=False)
-
-        else:
-            print("\033[94m> Ignored: from start url\033[0m " + response.url)
-
-        return self.parse(response)
+   
+    def log_unbroken_pages(self, response):
+        """Log successful page loads to Zapier"""
+        if response.status == 200:
+            file_path = response.meta.get("file_path")
+            url = response.meta.get("original_url")
+            
+            requests.post(
+                "https://hooks.zapier.com/hooks/catch/12058878/20il2ne/",
+                json={
+                    "file_path": file_path,
+                    "url": url,
+                    "status": "200",
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "time": datetime.now().strftime("%H:%M:%S")
+                }
+            )
+        return "200 OK"
 
     def is_rules_compliant(self, response):
 
@@ -402,24 +275,10 @@ class DocumentationSpider(CrawlSpider, SitemapSpider):
             yield failure.request.replace(url=alternative_link, meta=meta)
             return
 
-    def __init_sitemap_(self, sitemap_urls, custom_sitemap_rules,
-                        sitemap_alternate_links):
-        """Init method of a SiteMapSpider @Scrapy"""
-        self.sitemap_alternate_links = sitemap_alternate_links
-        self.sitemap_urls = sitemap_urls
-        self.sitemap_rules = custom_sitemap_rules
-        self._cbs = []
-        for r, c in self.sitemap_rules:
-            if isinstance(c, str):
-                c = getattr(self, c)
-            self._cbs.append((regex(r), c))
-        self._follow = [regex(x) for x in self.sitemap_follow]
-
     def engine_stopped(self):
         """Print statistics after the spider finishes."""
         print("\n=== Crawling Statistics ===")
         print(f"Total files processed:    {self.total_files_processed}")
-        print(f"Successfully indexed:     {self.successfully_indexed}")
         print(f"  Total failed:          {self.failed_indexing}")
         print(f"  404 errors:            {self.failed_indexing_404}")
         print(f"  500 errors:            {self.failed_indexing_500}")
