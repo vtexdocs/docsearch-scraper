@@ -1,15 +1,9 @@
 {
   "index_name": "devportal-docs",
-  "start_urls": [
-    "https://developers.vtex.com/docs/api-reference"
-  ],
+  "start_urls": ["https://developers.vtex.com/docs/api-reference"],
   "stop_urls": [],
-  "sitemap_urls": [
-    "https://developers.vtex.com/server-sitemap.xml"
-  ],
-  "sitemap_urls_regexs": [
-    "/api-reference/"
-  ],
+  "sitemap_urls": ["https://developers.vtex.com/server-sitemap.xml"],
+  "sitemap_urls_regexs": ["/api-reference/"],
   "force_sitemap_urls_crawling": true,
   "selectors": {
     "lvl0": {
@@ -29,9 +23,7 @@
   "selectors_exclude": [],
   "custom_settings": {
     "separatorsToIndex": "_",
-    "attributesForFaceting": [
-      "doctype"
-    ],
+    "attributesForFaceting": ["doctype", "language"],
     "attributesToRetrieve": [
       "hierarchy",
       "content",
@@ -40,6 +32,7 @@
       "url_without_anchor",
       "type",
       "doctype",
+      "language",
       "doctitle",
       "doccategory",
       "method"
@@ -48,9 +41,7 @@
   "js_render": true,
   "js_wait": 1,
   "use_anchors": true,
-  "clear_index": true,
-  "conversation_id": [
-    "706181789"
-  ],
+  "clear_index": false,
+  "conversation_id": ["706181789"],
   "nb_hits": 17139
 }
