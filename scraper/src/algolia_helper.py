@@ -33,6 +33,7 @@ class AlgoliaHelper:
         else:
             """Initialize the tmp-index with an copy of curr index content"""
             self.algolia_client.copy_index(index_name, index_name_tmp)
+            self.algolia_index_tmp.set_settings(settings)
 
 
     def add_records(self, records, url, from_sitemap):
