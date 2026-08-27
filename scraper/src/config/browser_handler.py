@@ -3,6 +3,7 @@ import os
 from selenium import webdriver
 
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
 from ..custom_downloader_middleware import CustomDownloaderMiddleware
 from ..js_executor import JsExecutor
 
@@ -23,8 +24,15 @@ class BrowserHandler:
                                             js_render):
             chrome_options = Options()
             chrome_options.add_argument('--no-sandbox')
-            chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--headless=new')
+            chrome_options.add_argument('--disable-dev-shm-usage')
+            chrome_options.add_argument('--disable-gpu')
             chrome_options.add_argument('user-agent={0}'.format(user_agent))
+            chrome_binary = os.environ.get(
+                'CHROME_BIN',
+                '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome')
+            if os.path.isfile(chrome_binary):
+                chrome_options.binary_location = chrome_binary
 
             CHROMEDRIVER_PATH = os.environ.get('CHROMEDRIVER_PATH',
                                                "/usr/bin/chromedriver")
@@ -33,11 +41,24 @@ class BrowserHandler:
                     "Env CHROMEDRIVER_PATH='{}' is not a path to a file".format(
                         CHROMEDRIVER_PATH))
             driver = webdriver.Chrome(
-                CHROMEDRIVER_PATH,
+                service=Service(executable_path=CHROMEDRIVER_PATH),
                 options=chrome_options)
             CustomDownloaderMiddleware.driver = driver
             JsExecutor.driver = driver
+            BrowserHandler._user_agent = user_agent
         return driver
+
+    @staticmethod
+    def restart():
+        try:
+            BrowserHandler.destroy(CustomDownloaderMiddleware.driver)
+        except Exception:
+            pass
+        return BrowserHandler.init(
+            '{"js_render": true}',
+            True,
+            getattr(BrowserHandler, '_user_agent', 'Algolia DocSearch Crawler')
+        )
 
     @staticmethod
     def destroy(driver):
