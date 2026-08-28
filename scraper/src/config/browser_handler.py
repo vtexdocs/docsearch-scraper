@@ -3,7 +3,6 @@ import os
 from selenium import webdriver
 
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
 from ..custom_downloader_middleware import CustomDownloaderMiddleware
 from ..js_executor import JsExecutor
 
@@ -15,6 +14,20 @@ class BrowserHandler:
         results = re.findall(group_regex, config_original_content)
 
         return len(results) > 0 or js_render
+
+    @staticmethod
+    def _create_driver(chromedriver_path, chrome_options):
+        # Selenium 4 accepts `service=`; Selenium 3.141 (Action / Python 3.6)
+        # still has chrome.service.Service but Chrome() rejects that kwarg.
+        try:
+            from selenium.webdriver.chrome.service import Service
+            return webdriver.Chrome(
+                service=Service(executable_path=chromedriver_path),
+                options=chrome_options)
+        except TypeError:
+            return webdriver.Chrome(
+                executable_path=chromedriver_path,
+                options=chrome_options)
 
     @staticmethod
     def init(config_original_content, js_render, user_agent):
@@ -40,9 +53,8 @@ class BrowserHandler:
                 raise Exception(
                     "Env CHROMEDRIVER_PATH='{}' is not a path to a file".format(
                         CHROMEDRIVER_PATH))
-            driver = webdriver.Chrome(
-                service=Service(executable_path=CHROMEDRIVER_PATH),
-                options=chrome_options)
+            driver = BrowserHandler._create_driver(
+                CHROMEDRIVER_PATH, chrome_options)
             CustomDownloaderMiddleware.driver = driver
             JsExecutor.driver = driver
             BrowserHandler._user_agent = user_agent
