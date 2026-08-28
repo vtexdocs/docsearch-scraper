@@ -3,7 +3,6 @@ import os
 from selenium import webdriver
 
 from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service
 from ..custom_downloader_middleware import CustomDownloaderMiddleware
 from ..js_executor import JsExecutor
 
@@ -54,9 +53,8 @@ class BrowserHandler:
                 raise Exception(
                     "Env CHROMEDRIVER_PATH='{}' is not a path to a file".format(
                         CHROMEDRIVER_PATH))
-            driver = webdriver.Chrome(
-                service=Service(executable_path=CHROMEDRIVER_PATH),
-                options=chrome_options)
+            driver = BrowserHandler._create_driver(
+                CHROMEDRIVER_PATH, chrome_options)
             CustomDownloaderMiddleware.driver = driver
             JsExecutor.driver = driver
             BrowserHandler._user_agent = user_agent
